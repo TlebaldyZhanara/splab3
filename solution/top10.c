@@ -8,50 +8,127 @@
 #include <stdlib.h>
 
 int main() {
-	int fd[2], status;                                         
-	// creating unnamed pipe
-	pipe(fd);
 
-	// cloning the parent
-	pid_t pid1 = fork();                
-		       
-	if (!pid1) {
-		// child this process is going to write to pipe
-		// redirecting STDOUT (fd==1) to pipe
-		dup2(fd[1], 1);
-		// closing both ends of the pipe
-		close(fd[0]);
-		close(fd[1]);      
-		// execute cat
-		char* command[3] = {"/bin/cat", "top10.c", NULL};
-		execv(command[0], command);
-		exit(EXIT_FAILURE);
-	} else if (pid1 == -1) {                                   
-		// fork() returns -1 upon error
-		fprintf(stderr, "Can't fork, exiting...\n");           
-		exit(EXIT_FAILURE);
-	}                                                          
+   int A[2]; 
+   pipe(A);
+   int pid1 = fork(); 
 
-	pid_t pid2 = fork();                                       
-	if (!pid2) {
-		// child process is going to read from pipe
-		// redirecting STDIN (fd==0) to pipe                                               
-		dup2(fd[0], 0);
-		close(fd[0]);
-		close(fd[1]); 
-		// execute grep
-		char* command[4] = {"/bin/grep", "--color=auto", "if", NULL};
-		execv(command[0], command);
-		exit(EXIT_FAILURE);                            
-	} else if (pid2 == -1) {             
-		fprintf(stderr, "Can't fork, exiting...\n");
-		exit(EXIT_FAILURE);
-	}
-	close(fd[0]);
-	close(fd[1]);
-	// wait for child process to exit
-	waitpid(pid1, NULL, 0);                                 
-	waitpid(pid2, &status, 0);                       
-	// exit with the exit status of grep
-	exit(status);
+   if (!pid1){
+      dup2(A[1], 1);
+      close(A[0]);
+      close(A[1]);
+      execlp("cut", "cut", "-d ", "-f1,10", "log.txt", NULL);
+      exit(EXIT_FAILURE);
+   }
+
+   int B[2]; 
+   pipe(B);
+
+   int pid2 = fork();                                       
+   if (!pid2){ 
+      dup2(A[0], 0);
+      close(A[0]);
+      close(A[1]); 
+
+      dup2(B[1], 1);
+      close(B[0]);
+      close(B[1]);      
+
+      execlp("grep", "grep", "-", "-v", NULL);
+      exit(EXIT_FAILURE);                            
+   }
+
+   close(A[0]);
+   close(A[1]);
+
+   int C[2]; 
+   pipe(C);
+
+   int pid3 = fork();                                       
+   if (!pid3){ 
+      dup2(B[0], 0);
+      close(B[0]);
+      close(B[1]);
+
+      dup2(C[1], 1);
+      close(C[0]);
+      close(C[1]);
+
+      execlp("awk", "awk", "{arr[$1]+=$2 ; bytes+=$2 } END {for (i in arr) {print i,\"-\",arr[i] ,\"-\", arr[i] * 100 / bytes , \"%\" } }", NULL);
+      exit(EXIT_FAILURE);    
+   }
+
+   close(B[0]);
+   close(B[1]);
+
+   int D[2]; 
+   pipe(D);
+   int pid4 = fork(); 
+
+   if (!pid4){ 
+      dup2(C[0], 0);
+      close(C[0]);
+      close(C[1]);
+
+      dup2(D[1], 1);
+      close(D[0]);
+      close(D[1]);
+      execlp("sort", "sort", "-k3", "-nr", NULL);
+      exit(EXIT_FAILURE);                            
+   }
+
+   close(C[0]);
+   close(C[1]);
+
+   int E[2]; 
+   pipe(E);
+   int pid5 = fork(); 
+
+   if (!pid5){ 
+      dup2(D[0], 0);
+      close(D[0]);
+      close(D[1]);
+
+      dup2(E[1], 1);
+      close(E[0]);
+      close(E[1]);
+      execlp("head", "head", "-10", NULL);
+      exit(EXIT_FAILURE);                            
+   }
+
+   close(D[0]);
+   close(D[1]);
+
+
+   int F[2]; 
+   pipe(F);
+
+   int pid6 = fork(); 
+
+   if (!pid6){ 
+      dup2(E[0], 0);
+      close(E[0]);
+      close(E[1]);
+
+      dup2(F[1], 1);
+      close(F[0]);
+      close(F[1]);
+      execlp("cat", "cat", "-n", NULL);
+      exit(EXIT_FAILURE);                            
+   }
+
+   close(E[0]);
+   close(E[1]);
+
+   FILE* Cin = fdopen(F[0], "r"); 
+   char line[1000];                               
+
+   while (fgets(line, 2, Cin)) {
+      printf("%s", line); 
+   }  
+
+   close(E[0]);
+   close(E[1]);    
+   waitpid(pid6, 0, 0);                                  
+   return 0;
 }
